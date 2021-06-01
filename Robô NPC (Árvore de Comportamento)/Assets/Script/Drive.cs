@@ -4,33 +4,35 @@ using UnityEngine;
 
 public class Drive : MonoBehaviour {
 
-    //Variavel veolicade
-    float speed = 20.0F;
-    //Variavel velocidade de rotação
+    //velocidade
+	float speed = 20.0F;
+    //velocidade de rotacao
     float rotationSpeed = 120.0F;
-    //Variavel que pega prefab bullet
+    //prefab da bala
     public GameObject bulletPrefab;
-    //Variavel que pega transform do spawn do bullet
+    //selecionar spawn da bala
     public Transform bulletSpawn;
 
     void Update() {
-        //Variavel que pega eixo vertical para movimentação
+        //vertical x velocidade
         float translation = Input.GetAxis("Vertical") * speed;
-        //Variavel que pega eixo horizontal para a rotação
+        //movimento x velocidade
         float rotation = Input.GetAxis("Horizontal") * rotationSpeed;
-        //Chama variavel do ultimo quadro até atual
+        //translation x delta time
         translation *= Time.deltaTime;
-        //Chama variavel do ultimo quadro até atual
+        //rotation x delta time
         rotation *= Time.deltaTime;
-        //Movimenta player
+        //movimento vertical
         transform.Translate(0, 0, translation);
-        //Rotaciona player
+        //rotacao horizontal
         transform.Rotate(0, rotation, 0);
-
-        //Ao apertar tecla espaço é instanciado prefab bullet na scene
-        if (Input.GetKeyDown("space"))
+        
+        //atira 
+        if(Input.GetKeyDown("space"))
         {
+            //instancia bala
             GameObject bullet = GameObject.Instantiate(bulletPrefab, bulletSpawn.transform.position, bulletSpawn.transform.rotation);
+            //adiciona força
             bullet.GetComponent<Rigidbody>().AddForce(bullet.transform.forward*2000);
         }
     }

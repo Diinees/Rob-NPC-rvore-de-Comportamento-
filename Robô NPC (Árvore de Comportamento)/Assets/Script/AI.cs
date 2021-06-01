@@ -4,90 +4,198 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.AI;
 using Panda;
+using Unity.Collections.LowLevel.Unsafe;
 
-public class AI : MonoBehaviour
+namespace Panda.Examples.Shooter
 {
-    //Variavel que pega transform do player
-    public Transform player;
-    //Variavel que pega transform do spawn da bullet
-    public Transform bulletSpawn;
-    //Variavel que pega slider de vida do player
-    public Slider healthBar;
-    //Variavel que pega prefab da bullet
-    public GameObject bulletPrefab;
-
-    //Variavel do agent
-    NavMeshAgent agent;
-    //Variavel do destino
-    public Vector3 destination;
-    //Variavel do alvo
-    public Vector3 target;
-    //Variavel vida do npc
-    float health = 100.0f;
-    //Varialvel velocidade de rotação
-    float rotSpeed = 5.0f;
-
-    //Variavel que passa raio de visibilidade
-    float visibleRange = 80.0f;
-    //Variavel que passa alcance de tiro
-    float shotRange = 40.0f;
-
-    void Start()
+    public class AI : MonoBehaviour
     {
-        //Passa propriedades do NavMeshAgent para varivel agent
-        agent = this.GetComponent<NavMeshAgent>();
-        //for a little buffer
-        agent.stoppingDistance = shotRange - 5;
-        //Atualiza vida do npc a cada 5 segundos
-        InvokeRepeating("UpdateHealth",5,0.5f);
-    }
+        //Transform do player
+        public Transform player; 
+        //Selecionar o que vai spawnar balas
+        public Transform bulletSpawn; 
+        //Slider da vida
+        public Slider healthBar;  
+        //Prefab projetil
+        public GameObject bulletPrefab; 
 
-    void Update()
-    {
-        //Passa posição da barra de vida do npc
-        Vector3 healthBarPos = Camera.main.WorldToScreenPoint(this.transform.position);
-        //Aplica valor da variavel de vida ao slider
-        healthBar.value = (int)health;
-        //Posiciona barra de vida do npc
-        healthBar.transform.position = healthBarPos + new Vector3(0,60,0);
-    }
+        //Pegar navmeshagent
+        NavMeshAgent agent;
+        //destino
+        public Vector3 destination; 
+        //Onde mirar
+        public Vector3 target;     
+        //vida do objeto
+        float health = 100.0f; 
+        //Velocidade de rotação
+        float rotSpeed = 5.0f; 
 
-    //Se vida for menor que 100 aumenta 1 na vida
-    void UpdateHealth()
-    {
-       if(health < 100)
-        health ++;
-    }
+        //Distancia da visao
+        float visibleRange = 80.0f;
+        //Distancia do tiro
+        float shotRange = 40.0f;
 
-    //Se colidir com bullet tira 10 da vida
-    void OnCollisionEnter(Collision col)
-    {
-        if(col.gameObject.tag == "bullet")
+        void Start()
         {
-            health -= 10;
+            //Colocando component
+            agent = this.GetComponent<NavMeshAgent>(); 
+            agent.stoppingDistance = shotRange - 5; //for a little buffer
+            //Repete metodo que recupera vida
+            InvokeRepeating("UpdateHealth", 5, 0.5f);
         }
-    }
 
-    [Task]
-    public void PickRandomDestination()
-    {
-        //Variavel vector3 que passa localização aleatória
-        Vector3 dest = new Vector3(Random.Range(-100, 100), 0, Random.Range(-100, 100));
-        //Move agent para localização
-        agent.SetDestination(dest);
-        Task.current.Succeed();
-    }
-
-    [Task]
-    //Debug do tempo em que o agent se move
-    public void MoveToDestination()
-    {
-        if (Task.isInspected)
-            Task.current.debugInfo = string.Format("t={0:0.00}", Time.time);
-        if(agent.remainingDistance >= agent.stoppingDistance && !agent.pathPending)
+        void Update()
         {
+            //Vida acompanha camera 
+            Vector3 healthBarPos = Camera.main.WorldToScreenPoint(this.transform.position);
+            //Faz barra de vida ficar igual a vida do player
+            healthBar.value = (int)health;
+            //Posicao da barra de vida
+            healthBar.transform.position = healthBarPos + new Vector3(0, 60, 0); 
+        }
+
+        void UpdateHealth()
+        {
+            //Recupera 1 de vida se a vida ficar menos de 100
+            if (health < 100)
+                health++;
+        }
+
+        void OnCollisionEnter(Collision col)
+        {
+            //Perde 10 de vida se colidir com bala
+            if (col.gameObject.tag == "bullet")
+            {
+                health -= 10;
+            }
+        }
+        [Task]
+        public void PickRandomDestination()
+        {
+            //Recebe vector 3 random em x e z que varia de -100 ate 100
+            Vector3 dest = new Vector3(Random.Range(-100, 100), 0, Random.Range(-100, 100));
+            //Faz movimento ate dest
+            agent.SetDestination(dest);
+            //Missao como sucesso
             Task.current.Succeed();
+        }
+        [Task]
+        public void MoveToDestination()
+        {
+            //Tempo da missao
+            if (Task.isInspected) Task.current.debugInfo = string.Format("t={0:0.00}", Time.time);
+            //Se a distancia que resta for menor que a distancia dele parar, da a missao como bem sucedida
+            if (agent.remainingDistance <= agent.stoppingDistance && !agent.pathPending)
+            {
+                Task.current.Succeed(); 
+            }
+        }
+        [Task]
+        public void PickDestination(int x, int z)
+        {
+            //Marca o X e Y do destino
+            Vector3 dest = new Vector3(x, 0, z);
+            //Marca o destino
+            agent.SetDestination(dest);
+            //Da missao como bem sucedida
+            Task.current.Succeed();
+
+        }
+        [Task]
+        public void TargetPlayer()
+        {
+            //Marca target para transform position do player
+            target = player.transform.position;
+            //Da missao como bem sucedida
+            Task.current.Succeed();
+        }
+        [Task]
+        public bool Fire()
+        {
+            //Define instantiade da bala como um gameobject chamado bullet
+            GameObject bullet = GameObject.Instantiate(bulletPrefab, bulletSpawn.transform.position, bulletSpawn.transform.rotation);
+
+            //Addforce no rigidbody
+            bullet.GetComponent<Rigidbody>().AddForce(bullet.transform.forward * 2000);
+
+            return true;
+        }
+        [Task]
+        public void LookAtTarget()
+        {
+
+            //Define direcao = target - transform.position
+            Vector3 direction = target - this.transform.position;
+
+            //Faz rotacao
+            this.transform.rotation = Quaternion.Slerp(this.transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * rotSpeed);
+
+
+            if (Task.isInspected)
+                Task.current.debugInfo = string.Format("angle={0}", Vector3.Angle(this.transform.forward, direction));
+
+            //Analisa angulo se for <5
+            if (Vector3.Angle(this.transform.forward, direction) < 5.0f)
+            {
+                //Da a missao como bem sucedida
+                Task.current.Succeed();
+            }    
+        }
+        [Task]
+        bool SeePlayer()
+        {
+
+            Vector3 distance = player.transform.position - this.transform.position;
+            //Cria raycast
+            RaycastHit hit;
+            //Define seewall falso
+            bool seeWall = false;
+            //Define parametros do drawray
+            Debug.DrawRay(this.transform.position, distance, Color.red);
+            //Se raycast colidir
+            if(Physics.Raycast(this.transform.position, distance, out hit))
+            {
+                //Se colidir com a tag wall
+                if (hit.collider.gameObject.tag == "wall")
+                {
+                    //Define seewall vardadeiro
+                    seeWall = true;
+                }
+            }
+
+            if(Task.isInspected)
+                Task.current.debugInfo = string.Format("wall={0}", seeWall);
+
+            if (distance.magnitude < visibleRange && !seeWall)
+                return true;
+            else
+                return false;
+        }
+        [Task]
+        bool Turn(float angle)
+        {
+            var p = this.transform.position + Quaternion.AngleAxis(angle, Vector3.up) * this.transform.forward;
+            target = p;
+            return true;
+        }
+
+        [Task]                                                 
+        public bool IsHealthLessThan(float health)             
+        {
+            //Detecta se vida e menor que propria vida pra seguir outro processo
+            return this.health < health;                      
+        }
+
+        [Task]                
+        //Destruir gameobject
+        public bool Explode()                  
+        {
+            //Destroi barra de vida
+            Destroy(healthBar.gameObject);     
+            //Destroi proprio gameobject
+            Destroy(this.gameObject);          
+            //Retorna verdadeiro
+            return true;                       
         }
     }
 }
-
